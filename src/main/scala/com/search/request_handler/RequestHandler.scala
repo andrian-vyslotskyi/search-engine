@@ -1,6 +1,7 @@
 package com.search.request_handler
 
-import model.KafkaStorage
+import com.typesafe.config.ConfigFactory
+import model.{KafkaStorage, OffsetStorage}
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.common.serialization.StringDeserializer
 import org.apache.spark.SparkConf
@@ -10,22 +11,26 @@ import org.apache.spark.streaming.{Milliseconds, StreamingContext}
 
 object RequestHandler {
     def main(args: Array[String]): Unit = {
-        val offsetStorage = KafkaStorage //Todo: read from parameters
+        val config = ConfigFactory.load("app.properties")
+
+        val offsetStorage: OffsetStorage = OffsetStorage.getByName(config.getString("offset.storage"))
 
         val conf = new SparkConf().setMaster("local[*]").setAppName("handler")
         implicit val ssc: StreamingContext = new StreamingContext(conf, Milliseconds(500))
 
-        //Todo: read from parameters
-        val kafkaParams = Map[String, Object](
-            "bootstrap.servers" -> "localhost:9092,localhost:9093,localhost:9094",
+        val kafkaOriginalParams = Map[String, Object](
+            "bootstrap.servers" -> config.getString("kafka.servers"),
             "key.deserializer" -> classOf[StringDeserializer],
             "value.deserializer" -> classOf[StringDeserializer],
-            "group.id" -> "search_spark",
-            "auto.offset.reset" -> "latest",
+            "group.id" -> config.getString("kafka.group"),
             "enable.auto.commit" -> (false: java.lang.Boolean)
         )
+        val kafkaParams = offsetStorage match {
+            case KafkaStorage => kafkaOriginalParams + ("auto.offset.reset" -> "latest")
+            case _ => kafkaOriginalParams
+        }
 
-        val topics = Array("search-query")  //Todo: read from parameters
+        val topics: Array[String] = config.getString("consumer.topics").split(",")
 
         val stream = StreamBuilder.buildStream[String, String](topics, kafkaParams, offsetStorage)
 
