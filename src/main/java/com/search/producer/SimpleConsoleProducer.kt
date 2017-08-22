@@ -31,7 +31,7 @@ object SimpleConsoleProducer {
         while (true) {
             val str = readLine()
             if (str == "e") break
-            producer.send(ProducerRecord <String, String>(topic, str, str))
+            producer.send(ProducerRecord<String, String>(topic, str, str))
         }
 
         producer.close()
