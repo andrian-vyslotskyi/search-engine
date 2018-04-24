@@ -1,16 +1,18 @@
-package com.search.request_handler
+package com.search.ml
 
 import java.io.File
 
 import org.apache.spark.SparkContext
 import org.apache.spark.mllib.feature.{Word2Vec, Word2VecModel}
+import org.apache.spark.rdd.RDD
 
 class SynonymFinder(
                      sparkContext: SparkContext,
                      synonymsNumber: Int,
                      minimalSimilarity: Double = 0.75,
-                     modelPath: Option[String] = None,
-                     vectorsMapFile: Option[String] = None
+                     modelPath: String = "./word2vec",
+                     vectorsMapFile: Option[String] = None,
+                     trainSentences: Option[RDD[String]] = None
                    ) {
   val word2vec = new Word2Vec()
 
@@ -24,15 +26,26 @@ class SynonymFinder(
 
 
   def loadModel(): Word2VecModel = {
-    modelPath match {
-      case Some(path) if new File(path).exists() => Word2VecModel.load(sparkContext, path)
-      case _ => createModelFromVectors()
-    }
+    if (new File(modelPath).exists()) Word2VecModel.load(sparkContext, modelPath)
+    else createModelFromVectors()
   }
 
   def createModelFromVectors(): Word2VecModel = {
     vectorsMapFile match {
-      case Some(path) if new File(path).exists() => new Word2VecModel(convertTextFile(path))
+      case Some(path) if new File(path).exists() =>
+        val model = new Word2VecModel(convertTextFile(path))
+        model.save(sparkContext, modelPath)
+        model
+      case _ => trainModel()
+    }
+  }
+
+  def trainModel(): Word2VecModel = {
+    trainSentences match {
+      case Some(rdd) =>
+        val model = word2vec.fit(rdd.map(_.split(" ").toList))
+        model.save(sparkContext, modelPath)
+        model
       case _ => new Word2VecModelDummy
     }
   }

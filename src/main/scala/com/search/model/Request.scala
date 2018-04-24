@@ -9,9 +9,11 @@ object RequestType extends Enumeration {
   type RequestType = Value
   val Search, Put = Value
 }
+
 class RequestTypeRef extends TypeReference[RequestType.type]
 
 case class Request(
+                    uuid: String,
                     @JsonScalaEnumeration(classOf[RequestTypeRef]) requestType: RequestType.RequestType,
                     text: String
                   )

@@ -1,4 +1,4 @@
-import com.search.request_handler.SynonymFinder
+import com.search.ml.SynonymFinder
 import org.apache.spark.{SparkConf, SparkContext}
 import org.scalatest.{FlatSpec, Matchers}
 
